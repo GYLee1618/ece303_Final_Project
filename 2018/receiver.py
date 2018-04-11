@@ -1,3 +1,5 @@
+# Written by S. Mevawala, modified by D. Gitzel
+
 import channelsimulator
 
 

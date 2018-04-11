@@ -1,5 +1,6 @@
-import socket
+# Written by S. Mevawala, modified by D. Gitzel
 
+import socket
 import channelsimulator
 
 
