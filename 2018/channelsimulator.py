@@ -5,37 +5,34 @@ from random import randint
 
 
 class ChannelSimulator(object):
-    PROTOCOL_VERSION = 1
+    PROTOCOL_VERSION = 2
 
-    def __init__(self, is_sender, debug=False):
-        self.ip = "127.0.0.1"
+    def __init__(self, inbound_port, outbound_port, debug, ip_addr="127.0.0.1"):
+        self.ip = ip_addr
         self.sndr_socket = None
         self.rcvr_socket = None
         self.swap = None
         self.swap_bool = False
         self.debug = debug
-        if is_sender:
-            self.sndr_port = 50005
-            self.rcvr_port = 50006
-        else:
-            self.sndr_port = 50006
-            self.rcvr_port = 50005
+
+        self.sndr_port = outbound_port
+        self.rcvr_port = inbound_port
 
     # Log internal program state during DEBUG
     def log(self, message):
         if self.debug:
-            print message
+            print(message)
 
     # Setup the sender socket
-    def sndr_setup(self, time=10.0):
+    def sndr_setup(self, time):
         self.sndr_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sndr_socket.set_timeout(time)
+        self.sndr_socket.settimeout(time)
 
     # Setup the receiver socket
-    def rcvr_setup(self, time=10.0):
+    def rcvr_setup(self, time):
         self.rcvr_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rcvr_socket.bind((self.ip, self.rcvr_port))
-        self.rcvr_socket.set_timeout(time)
+        self.rcvr_socket.settimeout(time)
 
     # Put bits to the socket
     def put_to_socket(self, bits):

@@ -4,26 +4,37 @@ import socket
 import channelsimulator
 
 
-class BogoSender(object):
+class Sender(object):
+
+    def __init__(self, inbound_port=50006, outbound_port=50005, timeout=10, debug=False):
+        self.inbound_port = inbound_port
+        self.outbound_port = outbound_port
+        self.simulator = channelsimulator.ChannelSimulator(inbound_port=inbound_port, outbound_port=outbound_port, debug=debug)
+        self.simulator.sndr_setup(timeout)
+        self.simulator.rcvr_setup(timeout)
+
+    def send(self, data):
+        raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
+
+
+class BogoSender(Sender):
 
     def __init__(self):
-        super(self, BogoSender).__init__()
-        self.simulator = channelsimulator.ChannelSimulator(True)  # False for receiver
-        self.simulator.sndr_setup(1)
-        self.simulator.rcvr_setup(1)
+        super(BogoSender, self).__init__()
 
-    def send(self):
+    def send(self, data):
+        print("Sending on port: {} and waiting for ACK on port: {}".format(self.inbound_port, self.outbound_port))
         while True:
             try:
-                self.simulator.u_send(bin(2344))  # send data
+                self.simulator.u_send(data)  # send data
                 ack = self.simulator.u_receive()  # receive ACK
-                print ack
+                print(ack)
                 break
             except socket.timeout:
                 pass
 
 
 if __name__ == "__main__":
+    # test out BogoSender
     sndr = BogoSender()
-    sndr.send()
-
+    sndr.send(bin(2344))
