@@ -1,0 +1,1 @@
+def checksum(data):

@@ -2,7 +2,10 @@
 
 import socket
 import channelsimulator
+import checksum
 
+packet_size = 1024
+MAX_SEQNUM = 64
 
 class Sender(object):
 
@@ -14,7 +17,21 @@ class Sender(object):
         self.simulator.rcvr_setup(timeout)
 
     def send(self, data):
-        raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
+        #raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
+        num_bytes = 0                                   #number of bytes currently in the packet
+        seqnum = 0                                      #sequence number of packet                                  
+        for datum in data:
+            if num_bytes == 0:
+                packet = []
+            packet.append(datum)
+            if num_bytes == packet_size-1:
+                packet.insert(0,seqnum)                 #insert sequence number at beginning
+                seqnum = (seqnum+1) % MAX_SEQNUM        #increment and divide modulo max sequence number
+                
+                ChannelSimulator.u_send(packet)
+            num_bytes = (num_bytes + 1) % packet_size   #increment and divide modulo packet size
+
+
 
 
 class BogoSender(Sender):
