@@ -25,9 +25,10 @@ class Sender(object):
                 packet = []
             packet.append(datum)
             if num_bytes == packet_size-1:
-                packet.insert(0,seqnum)                 #insert sequence number at beginning
+                packet.insert(0,bin(seqnum))            #insert sequence number at beginning
                 seqnum = (seqnum+1) % MAX_SEQNUM        #increment and divide modulo max sequence number
-                
+                chksum = fletch_sum(packet)
+                packet.append(bin(chksum))
                 ChannelSimulator.u_send(packet)
             num_bytes = (num_bytes + 1) % packet_size   #increment and divide modulo packet size
 
