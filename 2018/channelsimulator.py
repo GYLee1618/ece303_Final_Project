@@ -1,10 +1,11 @@
 # Written by S. Mevawala, modified by D. Gitzel
 
-import datetime
 import logging
 import socket
 from collections import deque
 from random import randint, choice, uniform
+
+import utils
 
 
 def random_bytes(n):
@@ -25,8 +26,8 @@ class ChannelSimulator(object):
         :param debug_level: debug level for logging (e.g. logging.DEBUG)
         :param ip_addr: destination IP
         """
-        now = datetime.datetime.now()
-        logging.basicConfig(filename='ChannelSimulator_{}.log'.format(datetime.datetime.strftime(now,"%Y_%m_%dT%H%M%S")), level=debug_level)
+
+        self.logger = utils.Logger(self.__class__.__name__, debug_level)
         self.ip = ip_addr
         self.sndr_socket = None
         self.rcvr_socket = None

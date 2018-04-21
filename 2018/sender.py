@@ -4,15 +4,18 @@ import logging
 import socket
 
 import channelsimulator
+import utils
 
 
 class Sender(object):
 
-    def __init__(self, inbound_port=50006, outbound_port=50005, timeout=10, debug=logging.INFO):
+    def __init__(self, inbound_port=50006, outbound_port=50005, timeout=10, debug_level=logging.INFO):
+        self.logger = utils.Logger(self.__class__.__name__, debug_level)
+
         self.inbound_port = inbound_port
         self.outbound_port = outbound_port
         self.simulator = channelsimulator.ChannelSimulator(inbound_port=inbound_port, outbound_port=outbound_port,
-                                                           debug_level=debug)
+                                                           debug_level=debug_level)
         self.simulator.sndr_setup(timeout)
         self.simulator.rcvr_setup(timeout)
 
@@ -27,12 +30,12 @@ class BogoSender(Sender):
         super(BogoSender, self).__init__()
 
     def send(self, data):
-        print("Sending on port: {} and waiting for ACK on port: {}".format(self.outbound_port, self.inbound_port))
+        self.logger.info("Sending on port: {} and waiting for ACK on port: {}".format(self.outbound_port, self.inbound_port))
         while True:
             try:
                 self.simulator.put_to_socket(data)  # send data
                 ack = self.simulator.get_from_socket()  # receive ACK
-                print("Got ACK from socket: {}".format(
+                self.logger.info("Got ACK from socket: {}".format(
                     ack.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
                 break
             except socket.timeout:

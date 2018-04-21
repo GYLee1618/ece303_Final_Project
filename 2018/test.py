@@ -1,4 +1,5 @@
 import channelsimulator
+import logging
 
 if __name__ == "__main__":
     # test out corrupt()
