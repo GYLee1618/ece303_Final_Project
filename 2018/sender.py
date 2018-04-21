@@ -27,7 +27,7 @@ class BogoSender(Sender):
         super(BogoSender, self).__init__()
 
     def send(self, data):
-        print("Sending on port: {} and waiting for ACK on port: {}".format(self.inbound_port, self.outbound_port))
+        print("Sending on port: {} and waiting for ACK on port: {}".format(self.outbound_port, self.inbound_port))
         while True:
             try:
                 self.simulator.put_to_socket(data)  # send data
