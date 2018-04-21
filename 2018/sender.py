@@ -1,15 +1,18 @@
 # Written by S. Mevawala, modified by D. Gitzel
 
+import logging
 import socket
+
 import channelsimulator
 
 
 class Sender(object):
 
-    def __init__(self, inbound_port=50006, outbound_port=50005, timeout=10, debug=False):
+    def __init__(self, inbound_port=50006, outbound_port=50005, timeout=10, debug=logging.INFO):
         self.inbound_port = inbound_port
         self.outbound_port = outbound_port
-        self.simulator = channelsimulator.ChannelSimulator(inbound_port=inbound_port, outbound_port=outbound_port, debug=debug)
+        self.simulator = channelsimulator.ChannelSimulator(inbound_port=inbound_port, outbound_port=outbound_port,
+                                                           debug_level=debug)
         self.simulator.sndr_setup(timeout)
         self.simulator.rcvr_setup(timeout)
 
@@ -18,6 +21,7 @@ class Sender(object):
 
 
 class BogoSender(Sender):
+    TEST_DATA = bytearray([68, 65, 84, 65])  # some bytes representing ASCII characters: 'D', 'A', 'T', 'A'
 
     def __init__(self):
         super(BogoSender, self).__init__()
@@ -26,9 +30,10 @@ class BogoSender(Sender):
         print("Sending on port: {} and waiting for ACK on port: {}".format(self.inbound_port, self.outbound_port))
         while True:
             try:
-                self.simulator.u_send(data)  # send data
-                ack = self.simulator.u_receive()  # receive ACK
-                print(ack)
+                self.simulator.put_to_socket(data)  # send data
+                ack = self.simulator.get_from_socket()  # receive ACK
+                print("Got ACK from socket: {}".format(
+                    ack.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
                 break
             except socket.timeout:
                 pass
@@ -37,4 +42,4 @@ class BogoSender(Sender):
 if __name__ == "__main__":
     # test out BogoSender
     sndr = BogoSender()
-    sndr.send(bin(2344))
+    sndr.send(BogoSender.TEST_DATA)
