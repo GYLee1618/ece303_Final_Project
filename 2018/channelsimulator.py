@@ -4,19 +4,46 @@ import logging
 import socket
 from collections import deque
 from random import randint, choice, uniform
+from copy import deepcopy
 
 import utils
+
+# region Helper Functions
 
 
 def random_bytes(n):
     return bytearray([randint(0, 225) for i in xrange(n)])
 
 
+def slice_frames(data_bytes):
+    """
+    Slice input into BUFFER_SIZE frames
+    :param data_bytes: input bytes
+    :return: list of frames of size BUFFER_SIZE
+    """
+    frames = list()
+    num_bytes = len(data_bytes)
+
+    for i in xrange(num_bytes / ChannelSimulator.BUFFER_SIZE):
+        # split data into 1024 byte frames
+        frames.append(
+            data_bytes[
+                i * ChannelSimulator.BUFFER_SIZE:
+                i * ChannelSimulator.BUFFER_SIZE + ChannelSimulator.BUFFER_SIZE
+            ]
+        )
+    return frames
+# endregion Helper Functions
+
+
 class ChannelSimulator(object):
-    PROTOCOL_VERSION = 3
+
+    # region Constants
+
+    PROTOCOL_VERSION = 4
     BUFFER_SIZE = 1024
     CORRUPTERS = (0, 1, 2, 4, 8, 16, 32, 64, 128, 255)
-    FRAME_HEADER = bytearray([170, 170, 170, 170, 170, 170, 170, 171])
+    # endregion Constants
 
     def __init__(self, inbound_port, outbound_port, debug_level=logging.INFO, ip_addr="127.0.0.1"):
         """
@@ -90,7 +117,7 @@ class ChannelSimulator(object):
         random_errors = uniform(0, 1)
         swap = uniform(0, 1)
         drop = uniform(0, 1)
-        corrupted = bytearray(len(data_bytes))
+        corrupted = deepcopy(data_bytes)
         if drop < drop_error_prob:
             if self.debug:
                 logging.debug("Dropping delayed and swapped frames: {}".format(self.swap))
@@ -103,7 +130,7 @@ class ChannelSimulator(object):
             if self.debug:
                 logging.debug("Frame before random errors: {}".format(data_bytes))
             for n in xrange(len(data_bytes)):
-                corrupted[n] = data_bytes[n] ^ choice(ChannelSimulator.CORRUPTERS)
+                corrupted[n] ^= choice(ChannelSimulator.CORRUPTERS)
             if self.debug:
                 logging.debug("Frame after random errors: {}".format(corrupted))
         if swap < swap_error_prob:
@@ -118,24 +145,6 @@ class ChannelSimulator(object):
                 logging.debug("Frame after swap: {}".format(corrupted))
         return corrupted
 
-    def slice_frames(self, data_bytes):
-        """
-        Slice input into BUFFER_SIZE frames
-        :param data_bytes: input bytes
-        :return: list of frames of size BUFFER_SIZE
-        """
-        frames = list()
-        num_bytes = len(data_bytes)
-
-        for i in xrange(num_bytes / ChannelSimulator.BUFFER_SIZE):
-            # split data into 1024 byte frames
-            frames.append(
-                data_bytes[
-                i * ChannelSimulator.BUFFER_SIZE:
-                i * ChannelSimulator.BUFFER_SIZE + ChannelSimulator.BUFFER_SIZE]
-            )
-        return frames
-
     def u_send(self, data_bytes):
         """
         Send data through unreliable channel
@@ -144,7 +153,7 @@ class ChannelSimulator(object):
         """
 
         # split data into 1024 byte frames
-        for frame in self.slice_frames(data_bytes):
+        for frame in slice_frames(data_bytes):
             self.put_to_socket(self.corrupt(frame))
 
     def u_receive(self):
