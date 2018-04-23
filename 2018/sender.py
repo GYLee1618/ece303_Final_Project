@@ -4,13 +4,13 @@ import logging
 import socket
 
 import channelsimulator
-#<<<<<<< HEAD
+
 import packetgen
 #=======
 import utils
 #>>>>>>> c7fabdd84265db93c4f623326fbecf613537b087
 
-packet_size = 1024
+packet_size = 1024 - 6 - 32
 MAX_SEQNUM = 64
 
 class Sender(object):
@@ -26,9 +26,9 @@ class Sender(object):
         self.simulator.rcvr_setup(timeout)
 
     def send(self, data):
-        #raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
-        naked_packets = [data[i:i+n] for i in range(2,len(data),packet_size)]
-        print(naked_packets)
+        packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
+        for packet in packets:
+            channelsimulator.ChannelSimulator.u_send(self.simulator,packet)
 
 
 
@@ -53,6 +53,9 @@ class BogoSender(Sender):
 
 
 if __name__ == "__main__":
-    # test out BogoSender
-    sndr = BogoSender()
-    sndr.send(BogoSender.TEST_DATA)
+    # test out Sender
+    sndr = Sender()
+    st = raw_input('Message: ')
+    bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
+
+    sndr.send(bst)

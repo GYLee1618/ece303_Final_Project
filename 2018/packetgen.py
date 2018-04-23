@@ -1,3 +1,10 @@
+import math
+
+def fixlength(number,length):
+	if len(number) - 2 < length:
+		number = '0b' + (length - len(number) + 2) * '0' + number[2:len(number)]
+	return number
+
 #computes the 32-bit Fletchers's checksum of the data
 #data is expected to be a binary string
 #output is a binary string
@@ -6,10 +13,10 @@ def fletch_sum(data):
 	b = 0
 	i = 0
 	while i < len(data):
-		a = (a + int(data[i:max(i+16,len(data)-1)],2)) % 65536
+		a = (a + int(data[i:max(i+16,len(data))],2)) % 65536
 		b = (b + a) % 65536
 		i += 16
-	return bin((b << 16) | a)
+	return fixlength(bin((b << 16) | a),32)
 
 #makes the packet given binary sequence number and data (expected to be binary strings)
 #checksum used is 32-bit Fletcher checksum
@@ -20,13 +27,15 @@ def makepkt(data,seqnum):
 	packet = '0b'
 
 	packet = packet + sn[2:len(sn)]
-	packet = packet + data[2:len(data)]
+	packet = packet + data
 	packet = packet + chksum[2:len(chksum)]
 
 	return packet
 
 def data_splitter(data,packet_size):
 	packets = [data[i:i+packet_size] for i in range(2,len(data),packet_size)]
+	if len(packets[len(packets)-1])-2 < packet_size:
+		packets[len(packets)-1] = packets[len(packets)-1] + '0' * (packet_size-len(packets[len(packets)-1])-2)
 	return packets
 
 def data_to_packets(data,packet_size,max_seqnum):
@@ -34,8 +43,11 @@ def data_to_packets(data,packet_size,max_seqnum):
 	send_pkts = []
 	seqnum = 0
 	for packet in packets:
-		send_pkts.append(makepkt(packet,bin(seqnum)))
-		seqnum = (seqnum + 1) % max_seqnum
+		send_pkts.append(makepkt(packet,fixlength(bin(seqnum),int(math.ceil(math.log(max_seqnum,2))))))
+		seqnum = (seqnum + 1) % max_seqnum	
 	return send_pkts
 
-print data_to_packets(bin(123456789876543210123456789876543210123456789876543210123456789876543210123456789876543210123456789876543210),16,16)
+#st = raw_input('Message: ')
+#bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
+
+#print(data_to_packets(bst,1024,64))
