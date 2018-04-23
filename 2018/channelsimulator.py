@@ -27,12 +27,15 @@ class ChannelSimulator(object):
         :param ip_addr: destination IP
         """
 
-        self.logger = utils.Logger(self.__class__.__name__, debug_level)
         self.ip = ip_addr
         self.sndr_socket = None
         self.rcvr_socket = None
         self.swap = deque([random_bytes(ChannelSimulator.BUFFER_SIZE), random_bytes(ChannelSimulator.BUFFER_SIZE)])
         self.debug = debug_level == logging.DEBUG
+        if self.debug:
+            self.logger = utils.Logger(self.__class__.__name__, debug_level)
+        else:
+            self.logger = None
 
         self.sndr_port = outbound_port
         self.rcvr_port = inbound_port
@@ -87,6 +90,7 @@ class ChannelSimulator(object):
         random_errors = uniform(0, 1)
         swap = uniform(0, 1)
         drop = uniform(0, 1)
+        corrupted = bytearray(len(data_bytes))
         if drop < drop_error_prob:
             if self.debug:
                 logging.debug("Dropping delayed and swapped frames: {}".format(self.swap))
@@ -99,20 +103,38 @@ class ChannelSimulator(object):
             if self.debug:
                 logging.debug("Frame before random errors: {}".format(data_bytes))
             for n in xrange(len(data_bytes)):
-                data_bytes[n] ^= choice(ChannelSimulator.CORRUPTERS)
+                corrupted[n] = data_bytes[n] ^ choice(ChannelSimulator.CORRUPTERS)
             if self.debug:
-                logging.debug("Frame after random errors: {}".format(data_bytes))
+                logging.debug("Frame after random errors: {}".format(corrupted))
         if swap < swap_error_prob:
             if self.debug:
                 logging.debug("Frame before swap: {}".format(data_bytes))
             if swap < swap_error_prob / 2:
-                data_bytes = self.swap.pop()
+                corrupted = self.swap.pop()
             else:
-                data_bytes = self.swap.popleft()
+                corrupted = self.swap.popleft()
             self.swap.append(data_bytes)
             if self.debug:
-                logging.debug("Frame after swap: {}".format(data_bytes))
-        return data_bytes
+                logging.debug("Frame after swap: {}".format(corrupted))
+        return corrupted
+
+    def slice_frames(self, data_bytes):
+        """
+        Slice input into BUFFER_SIZE frames
+        :param data_bytes: input bytes
+        :return: list of frames of size BUFFER_SIZE
+        """
+        frames = list()
+        num_bytes = len(data_bytes)
+
+        for i in xrange(num_bytes / ChannelSimulator.BUFFER_SIZE):
+            # split data into 1024 byte frames
+            frames.append(
+                data_bytes[
+                i * ChannelSimulator.BUFFER_SIZE:
+                i * ChannelSimulator.BUFFER_SIZE + ChannelSimulator.BUFFER_SIZE]
+            )
+        return frames
 
     def u_send(self, data_bytes):
         """
@@ -120,10 +142,9 @@ class ChannelSimulator(object):
         :param data_bytes: byte array to send
         :return:
         """
-        for i in xrange(len(data_bytes) / ChannelSimulator.BUFFER_SIZE):
-            # split data into 1024 byte frames
-            frame = data_bytes[
-                i * ChannelSimulator.BUFFER_SIZE + i * ChannelSimulator.BUFFER_SIZE + ChannelSimulator.BUFFER_SIZE]
+
+        # split data into 1024 byte frames
+        for frame in self.slice_frames(data_bytes):
             self.put_to_socket(self.corrupt(frame))
 
     def u_receive(self):
@@ -132,4 +153,3 @@ class ChannelSimulator(object):
         :return: byte array of data
         """
         return self.get_from_socket()
-
