@@ -1,12 +1,13 @@
-<<<<<<< HEAD
-=======
+HEAD
 # Written by S. Mevawala, modified by D. Gitzel
 
 import logging
 
->>>>>>> c7fabdd84265db93c4f623326fbecf613537b087
 import channelsimulator
+import packetgen
 import utils
+
+MAX_SEQNUM = 64
 
 class Receiver(object):
 
@@ -21,11 +22,33 @@ class Receiver(object):
         self.simulator.sndr_setup(timeout)
 
     def receive(self):
-        raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
+        rcv_arr = [0]*MAX_SEQNUM
+        exp_sn = 0
+        ended = False
+        while(!ended):
+        	rcv_pkt = channelcimulator.ChannelSimulator.u_receive(self.simulator)
+        	if ckeckpkt(rcv_pkt):
+        		rcv_sn = rcv_pkt[2:2+int(math.ceil(math.log(MAX_SEQNUM,2)))]
+        		rcv_arr[rcv_sn] = 1
+	        	if rcv_sn == exp_sn:
+	        		while rcv_arr[exp_sn] == 1:
+	        			rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
+	        			exp_sn++ % MAX_SEQNUM
+        			sendpkt = exp_sn
+        			#generate packet asking for next seq num
+        	else:
+        		sendpkt = -exp_sn
 
-    def validPacket():	#Checks the checksum of the packet to make sure the data wasn't corrupted.
+        	#NOW send a request for exp_sn packet number
+        	packetgen(expsn)
+
+
+
+
+
 
     def genCheck():		#Generates a checksum for the acknowledgement message.
+    					#Send expected sequence number and a checksum for it
 
     def sendMessage(seqNum):	#Send a message to sender saying which packet which packet it wants next. Will call genCheck to make checkSum.
 

@@ -11,26 +11,34 @@ def fixlength(number,length):
 def fletch_sum(data):
 	a = 0
 	b = 0
-	i = 0
+	i = 2
 	while i < len(data):
-		a = (a + int(data[i:max(i+16,len(data))],2)) % 65536
-		b = (b + a) % 65536
+		a = (a + int(data[i:max(i+16,len(data))],2)) % 65535
+		b = (b + a) % 65535
 		i += 16
 	return fixlength(bin((b << 16) | a),32)
 
+def checkpkt(data):
+	act_data = data[0:len(data)-32]	#-32 for checksum and -1 for count from 0
+
+	rcv_chksum = '0b' + data[len(data)-32:len(data)]
+
+	comp_chksum = fletch_sum(act_data)
+
+	return (comp_chksum == rcv_chksum) #If the checksum that was recieved matches the one generated from the received data then we are ready to roll.
+
 #makes the packet given binary sequence number and data (expected to be binary strings)
 #checksum used is 32-bit Fletcher checksum
-#returns binary packet (binary string)
+#returns binary packet (binary string)	
 def makepkt(data,seqnum):
-	sn = seqnum
-	chksum = fletch_sum(data)
-	packet = '0b'
+	packet = seqnum + data
 
-	packet = packet + sn[2:len(sn)]
-	packet = packet + data
+	chksum = fletch_sum(packet)
+
 	packet = packet + chksum[2:len(chksum)]
 
 	return packet
+
 
 def data_splitter(data,packet_size):
 	packets = [data[i:i+packet_size] for i in range(2,len(data),packet_size)]
@@ -50,4 +58,12 @@ def data_to_packets(data,packet_size,max_seqnum):
 #st = raw_input('Message: ')
 #bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
 
-#print(data_to_packets(bst,1024,64))
+#pkts = data_to_packets(bst,16,64)
+#print pkts
+#print checkpkt(pkts[0])
+#thing = list(pkts[1])
+#thing[6] = '1'
+
+#pkts[1] = ''.join(thing)
+#print checkpkt(pkts[1])
+
