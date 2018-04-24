@@ -37,10 +37,10 @@ class TestChannelSimulator(unittest.TestCase):
     def test_corrupt_swap(self):
         c = self.setup_channel()
         test_data = self.get_test_bytes(ChannelSimulator.BUFFER_SIZE)
-        swapped = deepcopy(c.swap)
+        swapped = deepcopy(c.swap_queue)
         corrupted_bytes = c.corrupt(test_data, drop_error_prob=0, swap_error_prob=1, random_error_prob=0)
         assert corrupted_bytes in swapped
-        assert test_data in c.swap
+        assert test_data in c.swap_queue
 
     def test_corrupt_random(self):
         c = self.setup_channel()
