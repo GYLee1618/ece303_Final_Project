@@ -16,10 +16,11 @@ class TestChannelSimulator(unittest.TestCase):
 
     def test_slice_frames(self):
         c = self.setup_channel()
-        frames = slice_frames(self.get_test_bytes(4 * ChannelSimulator.BUFFER_SIZE))
-        assert len(frames) == 4
-        for f in frames:
+        frames = slice_frames(self.get_test_bytes(4 * ChannelSimulator.BUFFER_SIZE + 1))
+        assert len(frames) == 5
+        for f in frames[:-2]:
             assert len(f) == ChannelSimulator.BUFFER_SIZE
+        assert len(frames[-1]) == 1
 
     def test_corrupt_none(self):
         c = self.setup_channel()

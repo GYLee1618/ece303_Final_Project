@@ -23,8 +23,9 @@ def slice_frames(data_bytes):
     """
     frames = list()
     num_bytes = len(data_bytes)
+    extra = 1 if num_bytes % ChannelSimulator.BUFFER_SIZE else 0
 
-    for i in xrange(num_bytes / ChannelSimulator.BUFFER_SIZE):
+    for i in xrange(num_bytes / ChannelSimulator.BUFFER_SIZE + extra):
         # split data into 1024 byte frames
         frames.append(
             data_bytes[
