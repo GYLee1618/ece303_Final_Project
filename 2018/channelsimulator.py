@@ -12,7 +12,7 @@ import utils
 
 
 def random_bytes(n):
-    return bytearray([randint(0, 225) for i in xrange(n)])
+    return bytearray([randint(0, 255) for i in xrange(n)])
 
 
 def slice_frames(data_bytes):
@@ -41,7 +41,7 @@ class ChannelSimulator(object):
 
     # region Constants
 
-    PROTOCOL_VERSION = 4
+    PROTOCOL_VERSION = 5
     BUFFER_SIZE = 1024
     CORRUPTERS = (0, 1, 2, 4, 8, 16, 32, 64, 128, 255)
     # endregion Constants
