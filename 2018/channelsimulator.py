@@ -168,7 +168,7 @@ class ChannelSimulator(object):
         for frame in slice_frames(data_bytes):
             corrupted = self.corrupt(frame)
             # put corrupted frame into socket if it wasn't dropped
-            if corrupted is not None:
+            if corrupted:
                 self.put_to_socket(corrupted)
 
     def u_receive(self):
