@@ -12,7 +12,7 @@ import utils
 
 
 def random_bytes(n):
-    return bytearray([randint(0, 225) for i in xrange(n)])
+    return bytearray([randint(0, 255) for i in xrange(n)])
 
 
 def slice_frames(data_bytes):
@@ -41,7 +41,7 @@ class ChannelSimulator(object):
 
     # region Constants
 
-    PROTOCOL_VERSION = 4
+    PROTOCOL_VERSION = 5
     BUFFER_SIZE = 1024
     CORRUPTERS = (0, 1, 2, 4, 8, 16, 32, 64, 128, 255)
     # endregion Constants
@@ -58,7 +58,7 @@ class ChannelSimulator(object):
         self.ip = ip_addr
         self.sndr_socket = None
         self.rcvr_socket = None
-        self.swap = deque([random_bytes(ChannelSimulator.BUFFER_SIZE), random_bytes(ChannelSimulator.BUFFER_SIZE)])
+        self.swap_queue = deque([random_bytes(ChannelSimulator.BUFFER_SIZE), random_bytes(ChannelSimulator.BUFFER_SIZE)])
         self.debug = debug_level == logging.DEBUG
         if self.debug:
             self.logger = utils.Logger(self.__class__.__name__, debug_level)
@@ -107,6 +107,12 @@ class ChannelSimulator(object):
     def corrupt(self, data_bytes, drop_error_prob=0.002, random_error_prob=0.002, swap_error_prob=0.002):
         """
         Corrupt data in the channel with random errors, swaps, and drops.
+        In this implementation, random errors will manifest as single byte errors most of the time. Occasionally, an
+        entire byte's bits may be flipped.
+        Swap errors are implemented via a queue that holds two old frames which are randomly swapped into the channel.
+        The queue is initialized with two random frames.
+        Drop errors drop the current frame and all the frames "delayed" in the swap queue.
+
         :param swap_error_prob: swap frame error probability
         :param random_error_prob: random bit error probability
         :param drop_error_prob: drop frame error probability
@@ -115,33 +121,38 @@ class ChannelSimulator(object):
         """
         if self.debug:
             logging.debug("Sending bytes through corrupting channel")
-        random_errors = uniform(0, 1)
-        swap = uniform(0, 1)
-        drop = uniform(0, 1)
+        p_error = uniform(0, 1)
+        p_swap = uniform(0, 1)
+        p_drop = uniform(0, 1)
         corrupted = deepcopy(data_bytes)
-        if drop < drop_error_prob:
+        if p_drop < drop_error_prob:
             if self.debug:
-                logging.debug("Dropping delayed and swapped frames: {}".format(self.swap))
-            self.swap.clear()
-            self.swap += [random_bytes(ChannelSimulator.BUFFER_SIZE), random_bytes(ChannelSimulator.BUFFER_SIZE)]
+                logging.debug("Dropping delayed and swapped frames: {}".format(self.swap_queue))
+            # drop all the delayed frames in the swap queue
+            self.swap_queue.clear()
+            self.swap_queue += [random_bytes(ChannelSimulator.BUFFER_SIZE), random_bytes(ChannelSimulator.BUFFER_SIZE)]
             if self.debug:
                 logging.debug("Dropping current frame: {}".format(data_bytes))
-            return
-        if random_errors < random_error_prob:
+            return None
+        if p_error < random_error_prob:
+            # insert random errors into the frame
             if self.debug:
                 logging.debug("Frame before random errors: {}".format(data_bytes))
             for n in xrange(len(data_bytes)):
+                # XOR a random corrupter byte to change a single bit, none of the bits, or all the bits
                 corrupted[n] ^= choice(ChannelSimulator.CORRUPTERS)
             if self.debug:
                 logging.debug("Frame after random errors: {}".format(corrupted))
-        if swap < swap_error_prob:
+        if p_swap < swap_error_prob:
             if self.debug:
                 logging.debug("Frame before swap: {}".format(data_bytes))
-            if swap < swap_error_prob / 2:
-                corrupted = self.swap.pop()
+            # swap packets with an earlier packet by popping it off the swap queue
+            if p_swap < swap_error_prob / 2:
+                corrupted = self.swap_queue.pop()
             else:
-                corrupted = self.swap.popleft()
-            self.swap.append(data_bytes)
+                corrupted = self.swap_queue.popleft()
+            # store the current packet in the queue
+            self.swap_queue.append(data_bytes)
             if self.debug:
                 logging.debug("Frame after swap: {}".format(corrupted))
         return corrupted
@@ -155,7 +166,10 @@ class ChannelSimulator(object):
 
         # split data into 1024 byte frames
         for frame in slice_frames(data_bytes):
-            self.put_to_socket(self.corrupt(frame))
+            corrupted = self.corrupt(frame)
+            # put corrupted frame into socket if it wasn't dropped
+            if corrupted:
+                self.put_to_socket(corrupted)
 
     def u_receive(self):
         """
