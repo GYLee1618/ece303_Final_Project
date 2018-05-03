@@ -1,3 +1,4 @@
+#!
 # Written by S. Mevawala, modified by D. Gitzel
 
 import logging
@@ -27,10 +28,24 @@ class Sender(object):
 
     def send(self, data):
         packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
-        for packet in packets:
-            channelsimulator.ChannelSimulator.u_send(self.simulator,packet)
 
+        signal_length = bin(len(packets))
+        print signal_length
+        len_pkt = packetgen.data_to_packets(signal_length,packet_size,MAX_SEQNUM)
+        channelsimulator.ChannelSimulator.u_send(self.simulator,len_pkt[0])
 
+        for i in range(0,len(packets)):
+            received = False
+            
+            while not received:
+                channelsimulator.ChannelSimulator.u_send(self.simulator,packets[i])
+                try:
+                    rcv_pkt = channelsimulator.ChannelSimulator.u_receive(self.simulator)
+                    if packetgen.checkpkt(rcv_pkt):
+                        if packetgen.get_data(rcv_pkt,packet_size,MAX_SEQNUM) == (i+1) % MAX_SEQNUM:
+                            received = True
+                except socket.timeout:
+                    logging.debug("timed out")
 
 
 class BogoSender(Sender):

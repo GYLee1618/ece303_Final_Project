@@ -1,4 +1,3 @@
-HEAD
 # Written by S. Mevawala, modified by D. Gitzel
 
 import logging
@@ -6,7 +5,9 @@ import logging
 import channelsimulator
 import packetgen
 import utils
+import binascii
 
+packet_size = 1024 - 6 - 32
 MAX_SEQNUM = 64
 
 class Receiver(object):
@@ -24,33 +25,41 @@ class Receiver(object):
     def receive(self):
         rcv_arr = [0]*MAX_SEQNUM
         exp_sn = 0
-        ended = False
-        while(!ended):
-        	rcv_pkt = channelcimulator.ChannelSimulator.u_receive(self.simulator)
-        	if ckeckpkt(rcv_pkt):
-        		rcv_sn = rcv_pkt[2:2+int(math.ceil(math.log(MAX_SEQNUM,2)))]
-        		rcv_arr[rcv_sn] = 1
-	        	if rcv_sn == exp_sn:
-	        		while rcv_arr[exp_sn] == 1:
-	        			rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
-	        			exp_sn++ % MAX_SEQNUM
-        			sendpkt = exp_sn
-        			#generate packet asking for next seq num
-        	else:
-        		sendpkt = -exp_sn
+        signal_length_b = channelsimulator.ChannelSimulator.u_receive(self.simulator)
+         
+        signal_length = packetgen.get_data(signal_length_b,packet_size,MAX_SEQNUM)
+        print signal_length
+
+        while(exp_sn < signal_length):
+            rcv_pkt = channelsimulator.ChannelSimulator.u_receive(self.simulator)
+            if packetgen.ckeckpkt(rcv_pkt):
+                rcv_sn = rcv_pkt[2:2+int(math.ceil(math.log(MAX_SEQNUM,2)))]
+                rcv_arr[rcv_sn] = 1
+                n = packetgen.get_data(packet,packet_size,MAX_SEQNUM)
+                data = binascii.unhexlify('%x' % n)
+                print data
+                if rcv_sn == exp_sn:
+                    while rcv_arr[exp_sn] == 1:
+                        rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
+                        exp_sn = (exp_sn + 1) % MAX_SEQNUM
+        	sendpkt = exp_sn
+        	#generate packet asking for next seq num
 
         	#NOW send a request for exp_sn packet number
-        	packetgen(expsn)
+        	rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
+            channelsimulator.ChannelSimulator.u_send(self.simulator,rn_packet[0])
 
 
 
 
 
 
-    def genCheck():		#Generates a checksum for the acknowledgement message.
+
+
+    #def genCheck():		#Generates a checksum for the acknowledgement message.
     					#Send expected sequence number and a checksum for it
 
-    def sendMessage(seqNum):	#Send a message to sender saying which packet which packet it wants next. Will call genCheck to make checkSum.
+    #def sendMessage(seqNum):	#Send a message to sender saying which packet which packet it wants next. Will call genCheck to make checkSum.
 
     # First take incoming packets and use validPacket(). Return a value 0 for good packet and -1 for bad packet.
     	#If good packet mark that it has been received in receied vector array.
@@ -77,5 +86,5 @@ class BogoReceiver(Receiver):
 
 if __name__ == "__main__":
     # test out BogoReceiver
-    rcvr = BogoReceiver()
+    rcvr = Receiver()
     rcvr.receive()

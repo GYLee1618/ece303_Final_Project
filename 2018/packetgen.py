@@ -1,4 +1,6 @@
 import math
+import struct
+import binascii
 
 def fixlength(number,length):
 	if len(number) - 2 < length:
@@ -43,7 +45,7 @@ def makepkt(data,seqnum):
 def data_splitter(data,packet_size):
 	packets = [data[i:i+packet_size] for i in range(2,len(data),packet_size)]
 	if len(packets[len(packets)-1])-2 < packet_size:
-		packets[len(packets)-1] = packets[len(packets)-1] + '0' * (packet_size-len(packets[len(packets)-1])-2)
+		packets[len(packets)-1] =  '0' * (packet_size-len(packets[len(packets)-1])-2) + packets[len(packets)-1]
 	return packets
 
 def data_to_packets(data,packet_size,max_seqnum):
@@ -55,15 +57,20 @@ def data_to_packets(data,packet_size,max_seqnum):
 		seqnum = (seqnum + 1) % max_seqnum	
 	return send_pkts
 
-#st = raw_input('Message: ')
-#bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
+def get_data(packet,packet_size,max_seqnum):
+	print binascii.hexlify(packet[2+int(math.ceil(math.log(max_seqnum,2))):len(packet)-32])
+	return int(binascii.hexlify(packet[2+int(math.ceil(math.log(max_seqnum,2))):len(packet)-32]),16)
 
-#pkts = data_to_packets(bst,16,64)
-#print pkts
-#print checkpkt(pkts[0])
-#thing = list(pkts[1])
-#thing[6] = '1'
 
-#pkts[1] = ''.join(thing)
-#print checkpkt(pkts[1])
+if __name__ == '__main__':
+	st = raw_input('Message: ')
+	bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
+
+	pkts = data_to_packets(bst,16,64)
+	print checkpkt(pkts[0])
+	thing = list(pkts[1])
+	thing[6] = '1'
+
+	pkts[1] = ''.join(thing)
+	print checkpkt(pkts[1])
 
