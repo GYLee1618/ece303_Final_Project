@@ -4,7 +4,8 @@ import logging
 
 import channelsimulator
 import utils
-
+import sys
+import socket
 
 class Receiver(object):
 
@@ -31,11 +32,14 @@ class BogoReceiver(Receiver):
     def receive(self):
         self.logger.info("Receiving on port: {} and replying with ACK on port: {}".format(self.inbound_port, self.outbound_port))
         while True:
-            data = self.simulator.get_from_socket()  # receive data
-            self.logger.info("Got data from socket: {}".format(
-                data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
-            self.simulator.put_to_socket(BogoReceiver.ACK_DATA)  # send ACK
-
+            try:
+                 data = self.simulator.u_receive()  # receive data
+                 self.logger.info("Got data from socket: {}".format(
+                     data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
+	         sys.stdout.write(data)
+                 self.simulator.u_send(BogoReceiver.ACK_DATA)  # send ACK
+            except socket.timeout:
+                sys.exit()
 
 if __name__ == "__main__":
     # test out BogoReceiver
