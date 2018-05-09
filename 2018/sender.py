@@ -17,7 +17,7 @@ import sys
 
 class Sender(object):
 
-    def __init__(self, inbound_port=50006, outbound_port=50005, timeout=10, debug_level=logging.INFO):
+    def __init__(self, inbound_port=10000, outbound_port=10001, timeout=10, debug_level=logging.INFO):
         self.logger = utils.Logger(self.__class__.__name__, debug_level)
 
         self.inbound_port = inbound_port
@@ -28,16 +28,44 @@ class Sender(object):
         self.simulator.rcvr_setup(timeout)
 
     def send(self, data):
+#        packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
+#        print len(packets)
+#        signal_length = bytearray.fromhex('{:0256x}'.format(len(packets)))
+#        
+#        self.simulator.u_send(signal_length)
+#        rcv = self.simulator.u_receive()
+#        print packetgen.ba_to_int(rcv)
+#        
+#        while rcv != signal_length:
+#            self.simulator.u_send(signal_length)
+#            rcv = self.simulator.u_receive()
+#
+#        for i in range(0,len(packets)):
+#            received = False
+#            
+#            while not received:
+#                #print "sending"
+#                self.simulator.u_send(packets[i])
+#                try:
+#                    rcv_pkt = self.simulator.u_receive()
+#                    if packetgen.checkpkt(rcv_pkt):
+#                        #if packetgen.get_data(rcv_pkt,packet_size,MAX_SEQNUM) == (i+1) % MAX_SEQNUM:
+#                        received = True
+#                except socket.timeout:
+#                    self.logger.info("timed out")
+        
         packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
-        print len(packets)
+        
+        #3-way handshake
+        #Sender sends out how many packets its going to send
+        #Receiver echoes this
+        #Sender receives echo, compares. If same, sends ack (all 1's).
+
         signal_length = bytearray.fromhex('{:0256x}'.format(len(packets)))
-        
-        rcv = [0]
         self.simulator.u_send(signal_length)
-        #rcv = self.simulator.u_receive()
-        print packetgen.ba_to_int(rcv)
-        
-        while rcv != signal_length:
+        rcv = self.simulator.u_receive()
+
+        while not(rcv == signal_length):
             self.simulator.u_send(signal_length)
             rcv = self.simulator.u_receive()
 
@@ -54,6 +82,8 @@ class Sender(object):
                         received = True
                 except socket.timeout:
                     self.logger.info("timed out")
+        
+
 
 
 class BogoSender(Sender):
@@ -83,6 +113,6 @@ if __name__ == "__main__":
     sndr.send(DATA)
 
     # test out BogoSender
-    DATA = channelsimulator.random_bytes(1024)
-    sndr = BogoSender()
-    sndr.send(DATA)
+    #DATA = channelsimulator.random_bytes(1024)
+    #sndr = BogoSender()
+    #sndr.send(DATA)

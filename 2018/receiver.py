@@ -13,10 +13,11 @@ MAX_SEQNUM = 64
 
 import sys
 import socket
+import math
 
 class Receiver(object):
 
-    def __init__(self, inbound_port=50005, outbound_port=50006, timeout=10, debug_level=logging.INFO):
+    def __init__(self, inbound_port=10001, outbound_port=10000, timeout=10, debug_level=logging.INFO):
         self.logger = utils.Logger(self.__class__.__name__, debug_level)
 
         self.inbound_port = inbound_port
@@ -27,41 +28,88 @@ class Receiver(object):
         self.simulator.sndr_setup(timeout)
 
     def receive(self):
-        rcv_arr = [0]*MAX_SEQNUM
-        exp_sn = 0
-        
-        signal_length = 0
-        
-        signal_length_b = self.simulator.u_receive()
-        print 'aaaaaa'
-        signal_length = packetgen.ba_to_int(signal_length_b)
-        self.simulator.u_send(signal_length_b)
+#        rcv_arr = [0]*MAX_SEQNUM
+#        exp_sn = 0
+#        
+#        signal_length = 0
+#        
+#        signal_length_b = self.simulator.u_receive()
+#        print 'aaaaaa'
+#        signal_length = packetgen.ba_to_int(signal_length_b)
+#        self.simulator.u_send(signal_length_b)
+#
+#        while signal_length == 0:
+#            signal_length_b = self.simulator.u_receive()
+#            signal_length = packetgen.ba_to_int(signal_length_b)
+#            self.simulator.u_send(signal_length_b)
+#
+#        print signal_length
+#
+#        while(exp_sn < signal_length):
+#            rcv_pkt = self.simulator.u_receive(self.simulator)
+#           if packetgen.checkpkt(rcv_pkt):
+#                rcv_sn = rcv_pkt[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
+#                rcv_arr[rcv_sn] = 1
+#                data = rcv_pkt[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv_pkt)-32]
+#                self.logger.info("Got data from socket: {}".format(
+#                     data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
+#                if rcv_sn == exp_sn:
+#                    while rcv_arr[exp_sn] == 1:
+#                        rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
+#                        exp_sn = (exp_sn + 1) % MAX_SEQNUM
+#        	sendpkt = exp_sn
+#        	#generate packet asking for next seq num
 
-        while signal_length == 0:
-            signal_length_b = self.simulator.u_receive()
-            signal_length = packetgen.ba_to_int(signal_length_b)
-            self.simulator.u_send(signal_length_b)
-
-        print signal_length
-
-        while(exp_sn < signal_length):
-            rcv_pkt = self.simulator.u_receive(self.simulator)
-            if packetgen.checkpkt(rcv_pkt):
-                rcv_sn = rcv_pkt[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
-                rcv_arr[rcv_sn] = 1
-                data = rcv_pkt[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv_pkt)-32]
-                self.logger.info("Got data from socket: {}".format(
-                     data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
-                if rcv_sn == exp_sn:
-                    while rcv_arr[exp_sn] == 1:
-                        rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
-                        exp_sn = (exp_sn + 1) % MAX_SEQNUM
-        	sendpkt = exp_sn
-        	#generate packet asking for next seq num
 
         	#NOW send a request for exp_sn packet number
-        	rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
-            self.simulator.u_send(self.simulator,rn_packet[0])
+#        	rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
+#            self.simulator.u_send(self.simulator,rn_packet[0])
+        
+        rcv_arr = [0]*MAX_SEQNUM
+        exp_sn = 0
+        is_First = True
+        #3-way handshake
+        #Sender sends out how many packets its going to send
+        #Receiver echoes this
+        #Sender receives echo, compares. If same, sends ack (all 1's).
+        rcv = self.simulator.u_receive()
+        signal_length = rcv[-1]
+        self.simulator.u_send(rcv)
+
+        rcv = self.simulator.u_receive()
+        while rcv[5] == 0: #remember to change this
+            signal_length = rcv[-1]
+            self.simulator.u_send(rcv)
+            rcv = self.simulator.u_receive()
+
+        while(exp_sn < signal_length):
+            if is_First:
+                rcv_sn = rcv[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
+                rcv_arr[rcv_sn] = 1
+                data = rcv[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv)-32]
+                self.logger.info("Got data from socket: {}".format(
+                    data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
+            else:
+                try:
+                    rcv_pkt = self.simulator.u_receive()
+                    if packetgen.checkpkt(rcv_pkt):
+                        rcv_sn = rcv_pkt[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
+                        rcv_arr[rcv_sn] = 1
+                        data = rcv_pkt[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv_pkt)-32]
+                        self.logger.info("Got data from socket: {}".format(
+                             data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
+                        if rcv_sn == exp_sn:
+                            while rcv_arr[exp_sn] == 1:
+                                rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
+                                exp_sn = (exp_sn + 1) % MAX_SEQNUM
+                    sendpkt = exp_sn
+                    #generate packet asking for next seq num
+
+                    #NOW send a request for exp_sn packet number
+                    rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
+                    self.simulator.u_send(rn_packet[0])
+                except socket.timeout:
+                    self.logger.info("timed out")            
 
 
 
