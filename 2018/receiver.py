@@ -29,19 +29,29 @@ class Receiver(object):
     def receive(self):
         rcv_arr = [0]*MAX_SEQNUM
         exp_sn = 0
-        signal_length_b = channelsimulator.ChannelSimulator.u_receive(self.simulator)
-         
-        signal_length = packetgen.get_data(signal_length_b,packet_size,MAX_SEQNUM)
+        
+        signal_length = 0
+        
+        signal_length_b = self.simulator.u_receive()
+        print 'aaaaaa'
+        signal_length = packetgen.ba_to_int(signal_length_b)
+        self.simulator.u_send(signal_length_b)
+
+        while signal_length == 0:
+            signal_length_b = self.simulator.u_receive()
+            signal_length = packetgen.ba_to_int(signal_length_b)
+            self.simulator.u_send(signal_length_b)
+
         print signal_length
 
         while(exp_sn < signal_length):
-            rcv_pkt = channelsimulator.ChannelSimulator.u_receive(self.simulator)
-            if packetgen.ckeckpkt(rcv_pkt):
-                rcv_sn = rcv_pkt[2:2+int(math.ceil(math.log(MAX_SEQNUM,2)))]
+            rcv_pkt = self.simulator.u_receive(self.simulator)
+            if packetgen.checkpkt(rcv_pkt):
+                rcv_sn = rcv_pkt[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
                 rcv_arr[rcv_sn] = 1
-                n = packetgen.get_data(packet,packet_size,MAX_SEQNUM)
-                data = binascii.unhexlify('%x' % n)
-                print data
+                data = rcv_pkt[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv_pkt)-32]
+                self.logger.info("Got data from socket: {}".format(
+                     data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
                 if rcv_sn == exp_sn:
                     while rcv_arr[exp_sn] == 1:
                         rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
@@ -51,7 +61,7 @@ class Receiver(object):
 
         	#NOW send a request for exp_sn packet number
         	rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
-            channelsimulator.ChannelSimulator.u_send(self.simulator,rn_packet[0])
+            self.simulator.u_send(self.simulator,rn_packet[0])
 
 
 

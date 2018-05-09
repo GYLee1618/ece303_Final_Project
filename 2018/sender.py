@@ -8,6 +8,7 @@ import channelsimulator
 
 import packetgen
 import utils
+import time
 
 packet_size = 1024 - 6 - 32
 MAX_SEQNUM = 64
@@ -28,24 +29,31 @@ class Sender(object):
 
     def send(self, data):
         packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
-
-        signal_length = bin(len(packets))
-        print signal_length
-        len_pkt = packetgen.data_to_packets(signal_length,packet_size,MAX_SEQNUM)
-        channelsimulator.ChannelSimulator.u_send(self.simulator,len_pkt[0])
+        print len(packets)
+        signal_length = bytearray.fromhex('{:0256x}'.format(len(packets)))
+        
+        rcv = [0]
+        self.simulator.u_send(signal_length)
+        #rcv = self.simulator.u_receive()
+        print packetgen.ba_to_int(rcv)
+        
+        while rcv != signal_length:
+            self.simulator.u_send(signal_length)
+            rcv = self.simulator.u_receive()
 
         for i in range(0,len(packets)):
             received = False
             
             while not received:
-                channelsimulator.ChannelSimulator.u_send(self.simulator,packets[i])
+                #print "sending"
+                self.simulator.u_send(packets[i])
                 try:
-                    rcv_pkt = channelsimulator.ChannelSimulator.u_receive(self.simulator)
+                    rcv_pkt = self.simulator.u_receive()
                     if packetgen.checkpkt(rcv_pkt):
-                        if packetgen.get_data(rcv_pkt,packet_size,MAX_SEQNUM) == (i+1) % MAX_SEQNUM:
-                            received = True
+                        #if packetgen.get_data(rcv_pkt,packet_size,MAX_SEQNUM) == (i+1) % MAX_SEQNUM:
+                        received = True
                 except socket.timeout:
-                    logging.debug("timed out")
+                    self.logger.info("timed out")
 
 
 class BogoSender(Sender):
@@ -67,16 +75,14 @@ class BogoSender(Sender):
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     # test out Sender
-    sndr = Sender()
-    st = raw_input('Message: ')
-    bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
 
-    sndr.send(bst)
-=======
+    sndr = Sender()
+    
+    DATA = channelsimulator.random_bytes(1024)
+    sndr.send(DATA)
+
     # test out BogoSender
-    DATA = bytearray(sys.stdin.read())
+    DATA = channelsimulator.random_bytes(1024)
     sndr = BogoSender()
     sndr.send(DATA)
->>>>>>> cd3f711edad608c5033aaa785c0fc39ae2b87669

@@ -4,7 +4,7 @@ import binascii
 
 def fixlength(number,length):
 	if len(number) - 2 < length:
-		number = '0b' + (length - len(number) + 2) * '0' + number[2:len(number)]
+		number = bytearray((length - len(number)) * [0]) + number[0:len(number)]
 	return number
 
 #computes the 32-bit Fletchers's checksum of the data
@@ -13,17 +13,18 @@ def fixlength(number,length):
 def fletch_sum(data):
 	a = 0
 	b = 0
-	i = 2
+	i = 0
 	while i < len(data):
-		a = (a + int(data[i:max(i+16,len(data))],2)) % 65535
+		a = (a + data[i]) % 65535
 		b = (b + a) % 65535
 		i += 16
-	return fixlength(bin((b << 16) | a),32)
+	x = (b << 16) + a
+	return bytearray.fromhex('{:08x}'.format(x))
 
 def checkpkt(data):
 	act_data = data[0:len(data)-32]	#-32 for checksum and -1 for count from 0
 
-	rcv_chksum = '0b' + data[len(data)-32:len(data)]
+	rcv_chksum = data[len(data)-32:len(data)]
 
 	comp_chksum = fletch_sum(act_data)
 
@@ -37,30 +38,31 @@ def makepkt(data,seqnum):
 
 	chksum = fletch_sum(packet)
 
-	packet = packet + chksum[2:len(chksum)]
+	packet = packet + chksum[0:len(chksum)]
 
 	return packet
 
 
 def data_splitter(data,packet_size):
-	packets = [data[i:i+packet_size] for i in range(2,len(data),packet_size)]
-	if len(packets[len(packets)-1])-2 < packet_size:
-		packets[len(packets)-1] =  '0' * (packet_size-len(packets[len(packets)-1])-2) + packets[len(packets)-1]
+	packets = [data[i:i+packet_size] for i in range(0,len(data),packet_size)]
+	if len(packets[len(packets)-1]) < packet_size:
+		packets[len(packets)-1] =  bytearray([0] * (packet_size-len(packets[len(packets)-1]))) + packets[len(packets)-1]
 	return packets
+
+def ba_to_int(ba):
+	it = 0
+	for i in range(len(ba)-1,-1):
+		it += it + 256**(len(it)-1-i)*signal_length_b[i]
+	return it	
 
 def data_to_packets(data,packet_size,max_seqnum):
 	packets = data_splitter(data,packet_size)
 	send_pkts = []
 	seqnum = 0
 	for packet in packets:
-		send_pkts.append(makepkt(packet,fixlength(bin(seqnum),int(math.ceil(math.log(max_seqnum,2))))))
+		send_pkts.append(makepkt(packet,fixlength(bytearray.fromhex('{:06x}'.format(seqnum)),int(math.ceil(math.log(max_seqnum,2))))))
 		seqnum = (seqnum + 1) % max_seqnum	
 	return send_pkts
-
-def get_data(packet,packet_size,max_seqnum):
-	print binascii.hexlify(packet[2+int(math.ceil(math.log(max_seqnum,2))):len(packet)-32])
-	return int(binascii.hexlify(packet[2+int(math.ceil(math.log(max_seqnum,2))):len(packet)-32]),16)
-
 
 if __name__ == '__main__':
 	st = raw_input('Message: ')
