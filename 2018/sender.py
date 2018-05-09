@@ -7,12 +7,12 @@ import socket
 import channelsimulator
 
 import packetgen
-#=======
 import utils
-#>>>>>>> c7fabdd84265db93c4f623326fbecf613537b087
 
 packet_size = 1024 - 6 - 32
 MAX_SEQNUM = 64
+
+import sys
 
 class Sender(object):
 
@@ -49,7 +49,6 @@ class Sender(object):
 
 
 class BogoSender(Sender):
-    TEST_DATA = bytearray([68, 65, 84, 65])  # some bytes representing ASCII characters: 'D', 'A', 'T', 'A'
 
     def __init__(self):
         super(BogoSender, self).__init__()
@@ -58,8 +57,8 @@ class BogoSender(Sender):
         self.logger.info("Sending on port: {} and waiting for ACK on port: {}".format(self.outbound_port, self.inbound_port))
         while True:
             try:
-                self.simulator.put_to_socket(data)  # send data
-                ack = self.simulator.get_from_socket()  # receive ACK
+                self.simulator.u_send(data)  # send data
+                ack = self.simulator.u_receive()  # receive ACK
                 self.logger.info("Got ACK from socket: {}".format(
                     ack.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
                 break
@@ -68,9 +67,16 @@ class BogoSender(Sender):
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     # test out Sender
     sndr = Sender()
     st = raw_input('Message: ')
     bst = '0b'+''.join('{0:08b}'.format(ord(x), 'b') for x in st)
 
     sndr.send(bst)
+=======
+    # test out BogoSender
+    DATA = bytearray(sys.stdin.read())
+    sndr = BogoSender()
+    sndr.send(DATA)
+>>>>>>> cd3f711edad608c5033aaa785c0fc39ae2b87669
