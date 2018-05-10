@@ -3,7 +3,7 @@ OUTPUT ?= ./output.txt
 
 
 test:
-	python2 receiver.py > $(OUTPUT) & time python2 sender.py < $(INPUT) &
+	python2 receiver.py > $(OUTPUT) & time python2 sender.py > $(INPUT) &
 diff:
 	diff $(INPUT) $(OUTPUT)
 kill:

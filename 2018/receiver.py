@@ -7,9 +7,10 @@ import packetgen
 import utils
 
 import binascii
+import struct
 
-packet_size = 1024 - 6 - 32
-MAX_SEQNUM = 64
+packet_size = 1024 - 3 - 32
+MAX_SEQNUM = 2**24
 
 import sys
 import socket
@@ -17,7 +18,7 @@ import math
 
 class Receiver(object):
 
-    def __init__(self, inbound_port=10001, outbound_port=10000, timeout=10, debug_level=logging.INFO):
+    def __init__(self, inbound_port=10001, outbound_port=10000, timeout=1, debug_level=logging.INFO):
         self.logger = utils.Logger(self.__class__.__name__, debug_level)
 
         self.inbound_port = inbound_port
@@ -28,108 +29,63 @@ class Receiver(object):
         self.simulator.sndr_setup(timeout)
 
     def receive(self):
-#        rcv_arr = [0]*MAX_SEQNUM
-#        exp_sn = 0
-#        
-#        signal_length = 0
-#        
-#        signal_length_b = self.simulator.u_receive()
-#        print 'aaaaaa'
-#        signal_length = packetgen.ba_to_int(signal_length_b)
-#        self.simulator.u_send(signal_length_b)
-#
-#        while signal_length == 0:
-#            signal_length_b = self.simulator.u_receive()
-#            signal_length = packetgen.ba_to_int(signal_length_b)
-#            self.simulator.u_send(signal_length_b)
-#
-#        print signal_length
-#
-#        while(exp_sn < signal_length):
-#            rcv_pkt = self.simulator.u_receive(self.simulator)
-#           if packetgen.checkpkt(rcv_pkt):
-#                rcv_sn = rcv_pkt[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
-#                rcv_arr[rcv_sn] = 1
-#                data = rcv_pkt[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv_pkt)-32]
-#                self.logger.info("Got data from socket: {}".format(
-#                     data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
-#                if rcv_sn == exp_sn:
-#                    while rcv_arr[exp_sn] == 1:
-#                        rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
-#                        exp_sn = (exp_sn + 1) % MAX_SEQNUM
-#        	sendpkt = exp_sn
-#        	#generate packet asking for next seq num
-
-
-        	#NOW send a request for exp_sn packet number
-#        	rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
-#            self.simulator.u_send(self.simulator,rn_packet[0])
         
         rcv_arr = [0]*MAX_SEQNUM
-        exp_sn = 0
+        sn = 0
+        total_rcvd = 0
         is_First = True
+        NACK = packetgen.makepkt(bytearray([0])*packet_size,bytearray([0])*3)
         #3-way handshake
         #Sender sends out how many packets its going to send
         #Receiver echoes this
         #Sender receives echo, compares. If same, sends ack (all 1's).
-        rcv = self.simulator.u_receive()
-        signal_length = rcv[-1]
-        self.simulator.u_send(rcv)
+        while True:
+            try:
+                rcv = self.simulator.u_receive()
+                signal_length = struct.unpack('>L',rcv[-4:len(rcv)])
+                signal_length = signal_length[0]
+                self.simulator.u_send(rcv)
+                break
+            except socket.timeout:
+                self.logger.info("timed out")
 
+        rcv_vec = [0] * (signal_length+1)
+        '''
         rcv = self.simulator.u_receive()
-        while rcv[5] == 0: #remember to change this
+        while rcv[3] == 0: #remember to change this
+            self.logger.info('shoop')
             signal_length = rcv[-1]
             self.simulator.u_send(rcv)
             rcv = self.simulator.u_receive()
+        '''
+        self.logger.info(int(signal_length))
+            
+        while total_rcvd < signal_length:
+            self.logger.info('Receiving')
+            try:
+                #if not is_First:
+                rcv = self.simulator.u_receive()
+                '''else:
+                    is_First = False'''
+                if packetgen.checkpkt(rcv):
+                    tmp = struct.unpack('>L',bytearray([0])+rcv[0:3])
+                    if rcv_vec[tmp[0]] != 1:
+                        self.logger.info("Receiving {}th packet on port: {} and replying with ACK on port: {}".format(total_rcvd,self.inbound_port, self.outbound_port))
+                        self.logger.info(tmp[0])
 
-        while(exp_sn < signal_length):
-            if is_First:
-                rcv_sn = rcv[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
-                rcv_arr[rcv_sn] = 1
-                data = rcv[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv)-32]
-                self.logger.info("Got data from socket: {}".format(
-                    data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
-            else:
-                try:
-                    rcv_pkt = self.simulator.u_receive()
-                    if packetgen.checkpkt(rcv_pkt):
-                        rcv_sn = rcv_pkt[0:int(math.ceil(math.log(MAX_SEQNUM,2)))]
-                        rcv_arr[rcv_sn] = 1
-                        data = rcv_pkt[int(math.ceil(math.log(MAX_SEQNUM,2))):len(rcv_pkt)-32]
-                        self.logger.info("Got data from socket: {}".format(
-                             data.decode('ascii')))  # note that ASCII will only decode bytes in the range 0-127
-                        if rcv_sn == exp_sn:
-                            while rcv_arr[exp_sn] == 1:
-                                rcv_arr[(exp_sn+3*MAX_SEQNUM/4)%MAX_SEQNUM] = 0
-                                exp_sn = (exp_sn + 1) % MAX_SEQNUM
-                    sendpkt = exp_sn
-                    #generate packet asking for next seq num
-
-                    #NOW send a request for exp_sn packet number
-                    rn_packets = packetgen.data_to_packets(exp_sn,packet_size,MAX_SEQNUM)
-                    self.simulator.u_send(rn_packet[0])
-                except socket.timeout:
-                    self.logger.info("timed out")            
-
-
-
-
-
-
-
-
-    #def genCheck():		#Generates a checksum for the acknowledgement message.
-    					#Send expected sequence number and a checksum for it
-
-    #def sendMessage(seqNum):	#Send a message to sender saying which packet which packet it wants next. Will call genCheck to make checkSum.
-
-    # First take incoming packets and use validPacket(). Return a value 0 for good packet and -1 for bad packet.
-    	#If good packet mark that it has been received in receied vector array.
-    	#If bad packet don't mark it in the received vector array.
-    #Check received vector for the value of first unreceived packet.
-    #Use sendMessage to send a request for the the next unreceived packet number (seqNum).
-
-
+                        ACK = packetgen.makepkt(bytearray([1])*packet_size,rcv[0:3])
+                        self.simulator.u_send(ACK)
+                        total_rcvd += 1
+                        rcv_vec[tmp[0]] = 1
+                        print rcv[3:-32]
+                    else:
+                        ACK = packetgen.makepkt(bytearray([1])*packet_size,rcv[0:3])
+                        self.simulator.u_send(ACK)
+                else:
+                    self.simulator.u_send(NACK)
+            except socket.timeout:
+                self.logger.info("timed out")
+        self.logger.info('All Done')
 
 class BogoReceiver(Receiver):
     ACK_DATA = bytes(123)
