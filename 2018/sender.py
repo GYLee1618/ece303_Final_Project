@@ -43,6 +43,7 @@ class Sender(object):
         signal_length = bytearray.fromhex('{:0256x}'.format(len(packets)))
         self.simulator.u_send(signal_length)
 
+        time.sleep(.5)
         self.logger.info(len(packets))
         rcv = self.simulator.u_receive()
 
