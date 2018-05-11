@@ -23,11 +23,11 @@ def fletch_sum(data):
 	return bytearray.fromhex('{:08x}'.format(x))
 '''
 def checkpkt(data):
-	act_data = data[0:-32]	#-32 for checksum and -1 for count from 0
+	act_data = data[0:-16]	#-32 for checksum and -1 for count from 0
 
-	rcv_chksum = data[-32:len(data)]
+	rcv_chksum = data[-16:len(data)]
 
-	comp_chksum = bytearray.fromhex((hashlib.sha256(act_data).hexdigest()))
+	comp_chksum = bytearray.fromhex((hashlib.md5(act_data).hexdigest()))
 
 	return (comp_chksum == rcv_chksum) #If the checksum that was recieved matches the one generated from the received data then we are ready to roll.
 
@@ -37,9 +37,9 @@ def checkpkt(data):
 def makepkt(data,seqnum):
 	packet = seqnum + data
 
-	#hksum = hashlib.sha256(packet)
+	#hksum = hashlib.md5(packet)
 	
-	packet = packet + bytearray.fromhex((hashlib.sha256(packet).hexdigest()))
+	packet = packet + bytearray.fromhex((hashlib.md5(packet).hexdigest()))
 
 	return packet
 
@@ -47,7 +47,7 @@ def makepkt(data,seqnum):
 def data_splitter(data,packet_size):
 	packets = [data[i:i+packet_size] for i in range(0,len(data),packet_size)]
 	if len(packets[-1]) < packet_size:
-		packets[-1] =  bytearray([0]) * (packet_size-len(packets[-1])) + packets[-1]
+		packets[-1] =  packets[-1] + bytearray([4]) + bytearray([0]) * (packet_size-len(packets[-1])-1)
 	return packets
 
 def ba_to_int(ba):

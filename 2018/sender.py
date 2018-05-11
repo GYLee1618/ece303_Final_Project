@@ -10,7 +10,7 @@ import packetgen
 import utils
 import time
 
-packet_size = 1024 - 3 - 32
+packet_size = (32*1024) - 3 - 16
 MAX_SEQNUM = 2**24
 
 import sys
@@ -28,31 +28,6 @@ class Sender(object):
         self.simulator.rcvr_setup(timeout)
 
     def send(self, data):
-#        packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
-#        print len(packets)
-#        signal_length = bytearray.fromhex('{:0256x}'.format(len(packets)))
-#        
-#        self.simulator.u_send(signal_length)
-#        rcv = self.simulator.u_receive()
-#        print packetgen.ba_to_int(rcv)
-#        
-#        while rcv != signal_length:
-#            self.simulator.u_send(signal_length)
-#            rcv = self.simulator.u_receive()
-#
-#        for i in range(0,len(packets)):
-#            received = False
-#            
-#            while not received:
-#                #print "sending"
-#                self.simulator.u_send(packets[i])
-#                try:
-#                    rcv_pkt = self.simulator.u_receive()
-#                    if packetgen.checkpkt(rcv_pkt):
-#                        #if packetgen.get_data(rcv_pkt,packet_size,MAX_SEQNUM) == (i+1) % MAX_SEQNUM:
-#                        received = True
-#                except socket.timeout:
-#                    self.logger.info("timed out")
         
         packets = packetgen.data_to_packets(data,packet_size,MAX_SEQNUM)
         
@@ -76,10 +51,13 @@ class Sender(object):
             
             while not received:
                 self.logger.info('Sending packet {}'.format(i))
-                print (packets[i][3:-32])
                 self.simulator.u_send(packets[i])
                 try:
-                    rcv_pkt = self.simulator.u_receive()
+                    rcv_pkt = bytearray([])
+
+                    for j in range(0,32):
+                        rcv_pkt += self.simulator.u_receive()
+
                     if packetgen.checkpkt(rcv_pkt):
                         self.logger.info("chksum good")
                         if rcv_pkt[50] == 1 and rcv_pkt[0:3] == packets[i][0:3]:
@@ -116,7 +94,7 @@ if __name__ == "__main__":
 
     sndr = Sender()
     
-    DATA = channelsimulator.random_bytes(1024*1024)
+    DATA = bytearray(sys.stdin.read())
 
     sndr.send(DATA)
 

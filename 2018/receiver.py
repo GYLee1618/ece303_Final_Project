@@ -9,7 +9,7 @@ import utils
 import binascii
 import struct
 
-packet_size = 1024 - 3 - 32
+packet_size = (32*1024) - 3 - 16
 MAX_SEQNUM = 2**24
 
 import sys
@@ -63,26 +63,34 @@ class Receiver(object):
         while total_rcvd < signal_length:
             self.logger.info('Receiving')
             try:
-                #if not is_First:
-                rcv = self.simulator.u_receive()
-                '''else:
-                    is_First = False'''
+                rcv = bytearray([])
+
+                for i in range(0,32):
+                    rcv += self.simulator.u_receive()
+
+                self.logger.info("Length of packet is {}".format(len(rcv)))
                 if packetgen.checkpkt(rcv):
                     tmp = struct.unpack('>L',bytearray([0])+rcv[0:3])
+                    self.logger.info('checksum is good')
                     if rcv_vec[tmp[0]] != 1:
                         self.logger.info("Receiving {}th packet on port: {} and replying with ACK on port: {}".format(total_rcvd,self.inbound_port, self.outbound_port))
-                        self.logger.info(tmp[0])
 
                         ACK = packetgen.makepkt(bytearray([1])*packet_size,rcv[0:3])
                         self.simulator.u_send(ACK)
                         total_rcvd += 1
                         rcv_vec[tmp[0]] = 1
-                        print rcv[3:-32]
+                        if total_rcvd == signal_length:
+                            tmp = bytearray([])
+                            for byte in rcv[3:-16]:
+                                if byte == 4:
+                                    break
+                                tmp.append(byte)
+                            sys.stdout.write(tmp)
+                        else:
+                            sys.stdout.write(rcv[3:-16])
                     else:
                         ACK = packetgen.makepkt(bytearray([1])*packet_size,rcv[0:3])
                         self.simulator.u_send(ACK)
-                else:
-                    self.simulator.u_send(NACK)
             except socket.timeout:
                 self.logger.info("timed out")
         self.logger.info('All Done')
@@ -106,6 +114,5 @@ class BogoReceiver(Receiver):
                 sys.exit()
 
 if __name__ == "__main__":
-    # test out BogoReceiver
     rcvr = Receiver()
     rcvr.receive()
